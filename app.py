@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import chardet
+import io
 from langchain_groq import ChatGroq
 
 # ── Page Setup ──────────────────────────────────────
@@ -23,101 +25,117 @@ uploaded_file = st.file_uploader("📁 Upload your CSV file", type=["csv"])
 
 if uploaded_file and groq_api_key:
 
-    # Load Data
-    df = pd.read_csv(uploaded_file)
-    st.success(f"✅ Dataset loaded! Shape: {df.shape}")
+    try:
+        # ── Auto Detect Encoding ─────────────────────
+        raw_data = uploaded_file.read()
+        result = chardet.detect(raw_data)
+        encoding = result['encoding']
 
-    # Show Data Preview
-    st.subheader("📊 Data Preview")
-    st.dataframe(df.head())
+        # Load Data with correct encoding
+        df = pd.read_csv(io.BytesIO(raw_data), encoding=encoding)
+        st.success(f"✅ Dataset loaded! Shape: {df.shape}")
 
-    # Show Missing Values
-    st.subheader("❓ Missing Values")
-    st.dataframe(df.isnull().sum())
+        # Show Data Preview
+        st.subheader("📊 Data Preview")
+        st.dataframe(df.head())
 
-    # Connect to Groq
-    llm = ChatGroq(
-        model="llama-3.1-8b-instant",
-        api_key=groq_api_key
-    )
+        # Show Missing Values
+        st.subheader("❓ Missing Values")
+        st.dataframe(df.isnull().sum())
 
-    if st.button("🤖 Run AI Analysis!"):
+        # Connect to Groq
+        llm = ChatGroq(
+            model="llama-3.1-8b-instant",
+            api_key=groq_api_key
+        )
 
-        # ── Chart 1: Distributions ───────────────────
-        st.subheader("📊 Distributions of Numerical Columns")
-        numeric_cols = df.select_dtypes(include='number').columns
+        if st.button("🤖 Run AI Analysis!"):
 
-        for col in numeric_cols:
-            fig, ax = plt.subplots(figsize=(8, 4))
-            sns.histplot(x=col, data=df, ax=ax, kde=True, color='steelblue')
-            ax.set_title(f"Distribution of {col}")
-            st.pyplot(fig)
-            plt.close(fig)
+            # ── Chart 1: Distributions ───────────────
+            st.subheader("📊 Distributions of Numerical Columns")
+            numeric_cols = df.select_dtypes(include='number').columns
 
-        # ── Chart 2: Correlation Heatmap ─────────────
-        st.subheader("🔥 Correlation Heatmap")
-        fig, ax = plt.subplots(figsize=(10, 8))
-        corr = df.select_dtypes(include='number').corr()
-        sns.heatmap(corr, annot=True, cmap='coolwarm', ax=ax)
-        ax.set_title("Correlation Heatmap")
-        st.pyplot(fig)
-        plt.close(fig)
+            if len(numeric_cols) > 0:
+                for col in numeric_cols:
+                    fig, ax = plt.subplots(figsize=(8, 4))
+                    sns.histplot(x=col, data=df, ax=ax,
+                                kde=True, color='steelblue')
+                    ax.set_title(f"Distribution of {col}")
+                    st.pyplot(fig)
+                    plt.close(fig)
+            else:
+                st.warning("⚠️ No numerical columns found!")
 
-        # ── Chart 3: Missing Values ───────────────────
-        st.subheader("❓ Missing Values Chart")
-        missing = df.isnull().sum()
-        missing = missing[missing > 0]
+            # ── Chart 2: Correlation Heatmap ─────────
+            st.subheader("🔥 Correlation Heatmap")
+            numeric_df = df.select_dtypes(include='number')
 
-        if len(missing) > 0:
-            fig, ax = plt.subplots(figsize=(8, 4))
-            sns.barplot(x=missing.values, y=missing.index, ax=ax, color='salmon')
-            ax.set_title("Missing Values Per Column")
-            ax.set_xlabel("Missing Count")
-            st.pyplot(fig)
-            plt.close(fig)
-        else:
-            st.success("✅ No missing values found!")
+            if len(numeric_df.columns) > 1:
+                fig, ax = plt.subplots(figsize=(10, 8))
+                corr = numeric_df.corr()
+                sns.heatmap(corr, annot=True, cmap='coolwarm', ax=ax)
+                ax.set_title("Correlation Heatmap")
+                st.pyplot(fig)
+                plt.close(fig)
+            else:
+                st.warning("⚠️ Not enough numerical columns for heatmap!")
 
-        # ── Chart 4: Summary Statistics ──────────────
-        st.subheader("📈 Summary Statistics")
-        st.dataframe(df.describe())
+            # ── Chart 3: Missing Values ───────────────
+            st.subheader("❓ Missing Values Chart")
+            missing = df.isnull().sum()
+            missing = missing[missing > 0]
 
-        # ── Analyst Agent ─────────────────────────────
-        st.subheader("🧠 AI Insights")
+            if len(missing) > 0:
+                fig, ax = plt.subplots(figsize=(8, 4))
+                sns.barplot(x=missing.values,
+                           y=missing.index, ax=ax, color='salmon')
+                ax.set_title("Missing Values Per Column")
+                ax.set_xlabel("Missing Count")
+                st.pyplot(fig)
+                plt.close(fig)
+            else:
+                st.success("✅ No missing values found!")
 
-        with st.spinner("🤖 AI is thinking... Please wait 30 seconds!"):
-            try:
-                analysis_summary = df.describe(include="all").to_string()
+            # ── Chart 4: Summary Statistics ──────────
+            st.subheader("📈 Summary Statistics")
+            st.dataframe(df.describe())
 
-                insight_prompt = f"""
-                You are a senior data scientist.
-                Here are the statistics:
-                {analysis_summary}
+            # ── Analyst Agent ─────────────────────────
+            st.subheader("🧠 AI Insights")
+            with st.spinner("🤖 AI is thinking... Please wait!"):
+                try:
+                    analysis_summary = df.describe(
+                        include="all").to_string()
 
-                Explain in simple words:
-                - Key patterns
-                - Data quality issues
-                - Important columns
-                - Recommendations for ML model
-                """
+                    insight_prompt = f"""
+                    You are a senior data scientist.
+                    Here are the statistics:
+                    {analysis_summary}
 
-                insight_response = llm.invoke(insight_prompt)
-                insights = insight_response.content
+                    Explain in simple words:
+                    - Key patterns
+                    - Data quality issues
+                    - Important columns
+                    - Recommendations for ML model
+                    """
 
-                # Way 1 → Nice formatted text
-                st.success("✅ AI Analysis Complete!")
-                st.write(insights)
+                    insight_response = llm.invoke(insight_prompt)
+                    insights = insight_response.content
 
-                # Way 2 → Copyable text box
-                st.subheader("📋 Copy AI Insights Text:")
-                st.text_area(
-                    label="AI Generated Insights",
-                    value=insights,
-                    height=400
-                )
+                    # Show insights
+                    st.success("✅ AI Analysis Complete!")
+                    st.write(insights)
 
-                # Way 3 → Download as text file
-                report = f"""
+                    # Copyable text box
+                    st.subheader("📋 Copy AI Insights:")
+                    st.text_area(
+                        label="AI Generated Insights",
+                        value=insights,
+                        height=400
+                    )
+
+                    # Download Report
+                    report = f"""
 === EDA REPORT ===
 
 Dataset Shape: {df.shape}
@@ -129,24 +147,27 @@ Dataset Shape: {df.shape}
 === AI INSIGHTS ===
 
 {insights}
-                """
+                    """
+                    st.download_button(
+                        label="📄 Download Full Report",
+                        data=report,
+                        file_name="eda_report.txt",
+                        mime="text/plain"
+                    )
 
-                st.download_button(
-                    label="📄 Download Full Report",
-                    data=report,
-                    file_name="eda_report.txt",
-                    mime="text/plain"
-                )
+                except Exception as e:
+                    st.error(f"❌ AI Error: {str(e)}")
+                    st.write("Check your Groq API key and try again!")
 
-            except Exception as e:
-                st.error(f"❌ Error: {str(e)}")
-                st.write("Please check your Groq API key and try again!")
+    except Exception as e:
+        st.error(f"❌ Could not read CSV: {str(e)}")
+        st.write("Try saving your CSV as UTF-8 encoding and upload again!")
 
 elif uploaded_file and not groq_api_key:
-    st.warning("⚠️ Please enter your Groq API Key in the sidebar first!")
+    st.warning("⚠️ Please enter Groq API Key in sidebar!")
 
 elif not uploaded_file and groq_api_key:
-    st.info("📁 Please upload a CSV file to get started!")
+    st.info("📁 Please upload a CSV file!")
 
 else:
-    st.info("👈 Enter API Key in sidebar + Upload a CSV file to begin!")
+    st.info("👈 Enter API Key in sidebar + Upload CSV file to begin!")
