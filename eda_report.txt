@@ -1,0 +1,33 @@
+=== EDA REPORT ===
+
+Dataset Shape: (891, 12)
+
+=== AI INSIGHTS ===
+
+ - Patterns:
+   - The dataset is a passenger manifest of the Titanic, with 891 passengers. Most of the passengers (577) are male, and the majority of the passengers belonged to the 3rd class (Pclass=3).
+   - The survival rate (Survived) is about 40%, with only 189 survivors out of 891 passengers.
+   - The age distribution is quite broad, ranging from 0.42 to 80, with a mean age of 29.69 and a standard deviation of 14.53.
+   - The Embarked column shows the location from which passengers boarded the Titanic. Most passengers (644) embarked from Southampton.
+
+- Data Problems:
+   - Missing values: there are missing values in several columns, such as Name, Age, SibSp, Parch, Ticket, Fare, Cabin, and Embarked. This can impact the analysis and the model's performance.
+
+- Important Columns:
+   - Survived: the target variable for the machine learning problem (binary classification).
+   - Pclass: the passenger's ticket class, which can be a feature to help predict survival.
+   - Age: the age of the passenger, which could potentially impact the survival.
+   - Sex: the gender of the passenger, which may play a role in survival.
+   - SibSp: the number of siblings or spouses aboard the Titanic with the same family. This could be a feature, as larger family size may increase the chances of survival due to more resources.
+   - Parch: the number of parents/children aboard the Titanic with the same family. This could also be a feature, as having more family members on board may impact the survival.
+   - Embarked: the location from which the passenger embarked. This could potentially be a feature, as the port of departure might have influenced the Titanic's route and thus the disaster.
+
+- Before Building ML Model:
+   - Data preprocessing: handle missing values by either imputing the missing data or removing the rows with missing values.
+   - Feature engineering: create new features, such as combining Pclass with Sex or Age groupings.
+   - Data normalization: normalize numerical features, such as Age, Fare, and Ticket number, to ensure equal weightage in the model.
+   - Splitting data: divide the dataset into training, validation, and testing sets for model building and evaluation.
+   - Model selection: experiment with various machine learning algorithms, such as logistic regression, decision trees, random forests, and neural networks, to find the best model for the given dataset.
+   - Model tuning: fine-tune the selected model's hyperparameters to optimize its performance.
+   - Model evaluation: evaluate the model's performance using appropriate metrics, such as accuracy, precision, recall, F1 score, and AUC-ROC, and compare the results of different models.
+   - Model interpretation: understand the model's predictions and the importance of each feature to improve the model's interpretability and trustworthiness.
