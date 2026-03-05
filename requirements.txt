@@ -5,3 +5,4 @@ seaborn
 langchain
 langchain-groq
 langchain-community
+chardet
