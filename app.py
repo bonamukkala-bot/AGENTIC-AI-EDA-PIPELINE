@@ -26,13 +26,28 @@ uploaded_file = st.file_uploader("📁 Upload your CSV file", type=["csv"])
 if uploaded_file and groq_api_key:
 
     try:
-        # ── Auto Detect Encoding ─────────────────────
+        # Auto detect encoding
         raw_data = uploaded_file.read()
         result = chardet.detect(raw_data)
-        encoding = result['encoding']
+        encoding = result['encoding'] or 'utf-8'
 
-        # Load Data with correct encoding
-        df = pd.read_csv(io.BytesIO(raw_data), encoding=encoding)
+        # Try reading with flexible settings
+        try:
+            df = pd.read_csv(
+                io.BytesIO(raw_data),
+                encoding=encoding,
+                on_bad_lines='skip',
+                engine='python',
+                sep=None
+            )
+        except Exception:
+            df = pd.read_csv(
+                io.BytesIO(raw_data),
+                encoding='latin-1',
+                on_bad_lines='skip',
+                engine='python'
+            )
+
         st.success(f"✅ Dataset loaded! Shape: {df.shape}")
 
         # Show Data Preview
@@ -73,12 +88,13 @@ if uploaded_file and groq_api_key:
             if len(numeric_df.columns) > 1:
                 fig, ax = plt.subplots(figsize=(10, 8))
                 corr = numeric_df.corr()
-                sns.heatmap(corr, annot=True, cmap='coolwarm', ax=ax)
+                sns.heatmap(corr, annot=True,
+                           cmap='coolwarm', ax=ax)
                 ax.set_title("Correlation Heatmap")
                 st.pyplot(fig)
                 plt.close(fig)
             else:
-                st.warning("⚠️ Not enough numerical columns for heatmap!")
+                st.warning("⚠️ Not enough numerical columns!")
 
             # ── Chart 3: Missing Values ───────────────
             st.subheader("❓ Missing Values Chart")
@@ -88,7 +104,8 @@ if uploaded_file and groq_api_key:
             if len(missing) > 0:
                 fig, ax = plt.subplots(figsize=(8, 4))
                 sns.barplot(x=missing.values,
-                           y=missing.index, ax=ax, color='salmon')
+                           y=missing.index,
+                           ax=ax, color='salmon')
                 ax.set_title("Missing Values Per Column")
                 ax.set_xlabel("Missing Count")
                 st.pyplot(fig)
@@ -157,11 +174,11 @@ Dataset Shape: {df.shape}
 
                 except Exception as e:
                     st.error(f"❌ AI Error: {str(e)}")
-                    st.write("Check your Groq API key and try again!")
+                    st.write("Check your Groq API key!")
 
     except Exception as e:
         st.error(f"❌ Could not read CSV: {str(e)}")
-        st.write("Try saving your CSV as UTF-8 encoding and upload again!")
+        st.warning("💡 Try opening your CSV in Excel → Save As → CSV UTF-8")
 
 elif uploaded_file and not groq_api_key:
     st.warning("⚠️ Please enter Groq API Key in sidebar!")
