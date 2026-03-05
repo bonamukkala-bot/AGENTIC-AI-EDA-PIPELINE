@@ -1,7 +1,3 @@
-Here’s your **professional, clean, and powerful GitHub README.md** for your project 👇
-(Optimized for clarity, structure, and impact 🚀)
-
----
 
 # 🚀 Agentic AI EDA Pipeline
 
